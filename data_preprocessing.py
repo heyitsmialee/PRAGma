@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 
 def load_and_preprocess_data(csv_path='./Train_0319.csv'):
@@ -7,7 +8,7 @@ def load_and_preprocess_data(csv_path='./Train_0319.csv'):
     """
     raw_df = pd.read_csv(csv_path, encoding='cp949')
     
-    # 필요한 컬럼만 추출
+    # 필요한 컬럼만 추출 (AOI불량률 추가)
     df = raw_df[[ 
         'Result Ng2', '초물 DES 속도', 'DRY FILM 정보', '선폭 OFFSET', '양산DES 속도', 
         '통합코드', '거래처', '제품군', '공법구분', 'LAYER', '도금구분', '노광 설비정보', 
@@ -18,7 +19,7 @@ def load_and_preprocess_data(csv_path='./Train_0319.csv'):
         '분석치_Etching(염화동) - 온도', '분석치_Etching-첨가제(HB-120EF)', 
         '분석치_Etching량', '분석치_Soft Etch - Cu', '분석치_Soft Etch - H2SO4', 
         '분석치_Soft Etch - SPS', '분석치_박리액 - 농도', '분석치_수세수 - pH', 
-        '분석치_현상액 - pH', '분석치_현상액 - 농도'
+        '분석치_현상액 - pH', '분석치_현상액 - 농도', 'AOI불량률'
     ]].copy()
 
     # 영문/단축 컬럼명으로 변경
@@ -30,7 +31,7 @@ def load_and_preprocess_data(csv_path='./Train_0319.csv'):
         'rework_history', 'etch_factor', 'meas_etch_cu', 'meas_etch_hcl', 
         'meas_etch_sg', 'meas_etch_temp', 'meas_etch_additive', 'meas_etch_amount', 
         'meas_softetch_cu', 'meas_softetch_h2so4', 'meas_softetch_sps', 
-        'meas_strip_conc', 'meas_rinse_ph', 'meas_dev_ph', 'meas_dev_conc'
+        'meas_strip_conc', 'meas_rinse_ph', 'meas_dev_ph', 'meas_dev_conc', 'aoi_defect_rate'
     ]
     df.columns = new_cols
 
@@ -45,9 +46,13 @@ def load_and_preprocess_data(csv_path='./Train_0319.csv'):
     }
     df['defect_group'] = df['defect_code'].map(_defect_map).fillna(df['defect_code'])
     
-    # 파생변수 생성 (target 대비 offset)
+    # 파생변수 생성
     df['speed_offset'] = df['mass_des_speed'] - df['first_des_speed']
     df['rework_history'] = df['rework_history'].fillna('0')
+
+    # 불량 여부 (이진 분류 Target) 생성
+    # 불량률이 0보다 크면 불량(1), 0이면 정상(0)으로 간주
+    df['is_defective'] = np.where(df['aoi_defect_rate'] > 0, 1, 0)
 
     # 결측치 처리 (수치형은 중앙값)
     num_cols = df.select_dtypes(include=['number']).columns
@@ -57,11 +62,10 @@ def load_and_preprocess_data(csv_path='./Train_0319.csv'):
     ob_cols = df.select_dtypes('object').columns
     df = pd.get_dummies(df, columns=ob_cols)
 
-    # X, y 분리
-    X = df.drop(columns=['mass_des_speed', 'speed_offset'], errors='ignore')
-    y = df['speed_offset']
-
-    # Train / Test Split
-    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # 1. Train_Val 과 Test 로 분리 (80% / 20%)
+    df_train_val, df_test = train_test_split(df, test_size=0.2, random_state=42)
     
-    return x_train, x_test, y_train, y_test
+    # 2. Train_Val 에서 다시 Train 과 Validation 분리 (75% of 80% = 60%, 25% of 80% = 20%)
+    df_train, df_val = train_test_split(df_train_val, test_size=0.25, random_state=42)
+    
+    return df_train, df_val, df_test
