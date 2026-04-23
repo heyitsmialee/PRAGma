@@ -1,18 +1,20 @@
 from data_preprocessing import load_and_preprocess_data
 from model_training import train_and_evaluate
-from rag_pipeline import setup_rag_pipeline, query_rag
+# from rag_pipeline import setup_rag_pipeline, query_rag
 
 def run_ml_pipeline():
     print("========================================")
     print(" 1. 데이터 파이프라인 (Data Pipeline)   ")
     print("========================================")
-    x_train, x_test, y_train, y_test = load_and_preprocess_data('./Train_0319.csv')
-    print(f"데이터 분리 완료 (Train: {x_train.shape}, Test: {x_test.shape})")
+    # data_preprocessing 이 이제 분할된 DataFrame 3개를 반환합니다.
+    df_train, df_val, df_test = load_and_preprocess_data('./Train_0319.csv')
+    print(f"데이터 분리 완료 (Train: {df_train.shape}, Val: {df_val.shape}, Test: {df_test.shape})")
     
     print("\n========================================")
     print(" 2. 학습 파이프라인 (ML Pipeline)       ")
     print("========================================")
-    best_model = train_and_evaluate(x_train, x_test, y_train, y_test)
+    # 두 개의 모델(속도 추천 모델, AOI 불량률 예측 모델)을 순차적으로 튜닝하고 평가합니다.
+    model_1, model_2 = train_and_evaluate(df_train, df_val, df_test)
     print("ML 파이프라인 처리가 완료되었습니다.")
 
 def run_rag_pipeline():
@@ -35,5 +37,8 @@ if __name__ == "__main__":
     # 머신러닝 파이프라인 실행
     run_ml_pipeline()
     
-    # RAG(LLM) 파이프라인 실행 (주석처리)
+    # ========================================================
+    # RAG(LLM) 파이프라인은 리소스 사용량이 크므로,
+    # 필요하실 때만 아래 주석을 해제하여 실행하시기 바랍니다.
+    # ========================================================
     # run_rag_pipeline()
