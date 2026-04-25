@@ -37,17 +37,22 @@ def setup_rag_pipeline(docx_path='./tax_with_markdown.docx', db_dir='./chroma_hu
         bnb_4bit_compute_dtype="float16",
         bnb_4bit_use_double_quant=True,
     )
-
+    
     chat_model = HuggingFacePipeline.from_model_id(
-        model_id='LGAI-EXAONE/EXAONE-3.0-7.8B-Instruct',
-        task='text-generation',
+        model_id="LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct",
+        task="text-generation",
         pipeline_kwargs=dict(
-            max_new_tokens=1024,
-            do_sample=False,
-            repetition_penalty=1.03
-        ),
-        model_kwargs={'quantization_config': quantization_config}
-    )
+        max_new_tokens=1024,
+        do_sample=False,
+        repetition_penalty=1.03,
+        return_full_text=False
+    ),
+        
+    model_kwargs={
+        "quantization_config": quantization_config,
+        "trust_remote_code": True
+    }
+)
 
     llm = ChatHuggingFace(llm=chat_model)
 
