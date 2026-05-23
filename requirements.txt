@@ -1,0 +1,24 @@
+# Data Preprocessing & Modeling
+pandas
+numpy
+scikit-learn
+xgboost
+lightgbm
+optuna
+joblib
+
+# RAG & LLM Pipeline
+langchain
+langchain-community
+langchain-huggingface
+langchain-chroma
+langchain-text-splitters
+transformers
+huggingface_hub
+accelerate
+bitsandbytes
+chromadb
+
+# Document Parsers
+docx2txt
+jq

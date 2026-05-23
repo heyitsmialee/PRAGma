@@ -1,0 +1,362 @@
+[
+  {
+    "paper_id": "tang_2023",
+    "title": "Wet Chemical Etching of FPCB (16um)",
+    "mapped_variables": [
+      {
+        "paper_term": "conveyor speed",
+        "standard_column": "mass_des_speed",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_term": "etching factor",
+        "standard_column": "etch_factor",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_term": "Cu etching profile",
+        "standard_column": "width_offset",
+        "mapping_type": "conceptual"
+      },
+      {
+        "paper_term": "nozzle spray pressure",
+        "standard_column": null,
+        "mapping_type": "unavailable"
+      }
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "mass_des_speed",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "evidence_type": "direct"
+      },
+      {
+        "condition": {
+          "standard_column": "mass_des_speed",
+          "change": "increase"
+        },
+        "effect": {
+          "paper_term": "etching depth",
+          "change": "decrease"
+        },
+        "evidence_type": "paper_only"
+      }
+    ],
+    "example_case": {
+      "mass_des_speed": "3.8 m/min",
+      "nozzle_spray_pressure": "0.18 MPa",
+      "etching_depth": "7.55 μm",
+      "etch_factor": "6.45"
+    }
+  },
+  {
+    "paper_id": "cucl2_hcl_etching_rate_copper",
+    "citation": {
+      "title": "Etching Rate of Copper by CuCl2-HCl Solution",
+      "year": 2001,
+      "source": "Copper wet etching kinetics paper"
+    },
+    "korean_summary": "이 논문은 CuCl2-HCl 용액에서 구리 식각 속도를 다룬다. 네 변수 중 meas_etch_cu와 meas_etch_hcl에 가장 직접적으로 대응되며, 식각 속도는 etch_factor와 준직접적으로 연결할 수 있다.",
+    "mapped_variables": [
+      {
+        "paper_term": "CuCl2 concentration",
+        "standard_column": "meas_etch_cu",
+        "mapping_type": "direct",
+        "korean_description": "에칭액 내 CuCl2 농도 → meas_etch_cu"
+      },
+      {
+        "paper_term": "HCl concentration",
+        "standard_column": "meas_etch_hcl",
+        "mapping_type": "direct",
+        "korean_description": "염산 농도 → meas_etch_hcl"
+      },
+      {
+        "paper_term": "etching rate of copper",
+        "standard_column": "etch_factor",
+        "mapping_type": "semi_direct",
+        "korean_description": "구리 식각 속도 → etch_factor와 준직접 연결"
+      }
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "meas_etch_cu",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "high",
+        "korean_rule_explanation": "CuCl2 농도 증가 시 식각 반응성이 증가하여 etch_factor 상승 근거로 활용할 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_hcl",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "medium",
+        "korean_rule_explanation": "HCl 농도 증가가 구리 식각 속도 증가에 기여할 수 있으므로 etch_factor 증가 방향의 rule로 사용할 수 있다."
+      }
+    ],
+    "background_evidence": [
+      {
+        "content": "The etching process is influenced by solution chemistry and mass-transfer behavior.",
+        "korean_description": "식각은 단순 농도뿐 아니라 용액 내 확산 및 전달 현상의 영향을 받으므로 실제 현장 적용 시 다른 공정조건과 함께 해석해야 한다."
+      }
+    ]
+  },
+  {
+    "paper_id": "air_regenerated_cupric_chloride",
+    "citation": {
+      "title": "Copper Etching in Air Regenerated Cupric Chloride Solution",
+      "year": 2010,
+      "source": "Cupric chloride process study"
+    },
+    "korean_summary": "이 논문은 air-regenerated cupric chloride 용액에서 temperature, specific gravity, free acid concentration이 평균 식각속도에 미치는 영향을 다룬다. 네 변수 기준으로 meas_etch_temp, meas_etch_sg, meas_etch_hcl과 직접 또는 준직접 매핑이 가능하다.",
+    "mapped_variables": [
+      {
+        "paper_term": "temperature",
+        "standard_column": "meas_etch_temp",
+        "mapping_type": "direct",
+        "korean_description": "에칭 온도 → meas_etch_temp"
+      },
+      {
+        "paper_term": "specific gravity",
+        "standard_column": "meas_etch_sg",
+        "mapping_type": "direct",
+        "korean_description": "비중 → meas_etch_sg"
+      },
+      {
+        "paper_term": "free acid concentration",
+        "standard_column": "meas_etch_hcl",
+        "mapping_type": "semi_direct",
+        "korean_description": "유리산 농도 → meas_etch_hcl와 준직접 연결"
+      },
+      {
+        "paper_term": "average etching rate",
+        "standard_column": "etch_factor",
+        "mapping_type": "semi_direct",
+        "korean_description": "평균 식각속도 → etch_factor와 준직접 연결"
+      }
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "meas_etch_temp",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "high",
+        "korean_rule_explanation": "에칭 온도가 상승하면 평균 식각속도가 증가하는 경향이 있으므로 etch_factor 증가 방향으로 해석할 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_sg",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "medium",
+        "korean_rule_explanation": "비중이 적정 범위로 증가하면 식각 반응성이 개선되어 etch_factor가 증가할 가능성이 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_hcl",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "medium",
+        "korean_rule_explanation": "유리산 농도 증가가 평균 식각속도를 높일 수 있으므로 etch_factor 증가 근거로 사용할 수 있다."
+      }
+    ],
+    "background_evidence": [
+      {
+        "content": "Maximum etch rate was reported within specific operating windows rather than unbounded increase.",
+        "korean_description": "무조건 많이 올릴수록 좋은 게 아니라 특정 운전 범위 내에서 최적점이 존재한다는 점을 함께 고려해야 한다."
+      }
+    ]
+  },
+  {
+    "paper_id": "imaps_2018_cupric_chloride_optimization",
+    "citation": {
+      "title": "Optimization of Cupric Chloride Subtractive Etching for Cu High Density Interconnects",
+      "year": 2018,
+      "source": "IMAPS 2018"
+    },
+    "korean_summary": "이 자료는 acidic cupric chloride etch bath에서 specific gravity, H+ 및 bath chemistry가 etch rate와 etch profile에 미치는 영향을 다룬다. 네 변수 기준으로 meas_etch_sg, meas_etch_hcl, meas_etch_cu, etch_factor, width_offset와 연결할 수 있다.",
+    "mapped_variables": [
+      {
+        "paper_term": "specific gravity",
+        "standard_column": "meas_etch_sg",
+        "mapping_type": "direct",
+        "korean_description": "비중 → meas_etch_sg"
+      },
+      {
+        "paper_term": "H+ / free acid",
+        "standard_column": "meas_etch_hcl",
+        "mapping_type": "semi_direct",
+        "korean_description": "유리산/H+ → meas_etch_hcl와 준직접 연결"
+      },
+      {
+        "paper_term": "Cu(I) / Cu(II) bath chemistry",
+        "standard_column": "meas_etch_cu",
+        "mapping_type": "semi_direct",
+        "korean_description": "배스 내 구리 화학상태 → meas_etch_cu와 준직접 연결"
+      },
+      {
+        "paper_term": "etch rate",
+        "standard_column": "etch_factor",
+        "mapping_type": "semi_direct",
+        "korean_description": "식각속도 → etch_factor"
+      },
+      {
+        "paper_term": "etch profile",
+        "standard_column": "width_offset",
+        "mapping_type": "semi_direct",
+        "korean_description": "식각 profile 변화 → width_offset"
+      }
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "meas_etch_sg",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "medium",
+        "korean_rule_explanation": "비중이 적정 방향으로 증가하면 식각 반응성이 개선되어 etch_factor 상승 가능성이 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_hcl",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "width_offset",
+          "change": "decrease"
+        },
+        "confidence": "low",
+        "korean_rule_explanation": "유리산 농도가 적정하게 유지되면 etch profile이 안정화되어 선폭 편차가 감소하는 방향으로 해석할 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_cu",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "low",
+        "korean_rule_explanation": "배스 내 구리 화학 상태 변화는 식각속도 변화와 연결되므로 etch_factor 증가 방향의 보조 rule로 사용할 수 있다."
+      }
+    ],
+    "background_evidence": [
+      {
+        "content": "Etch profile behavior depends on combined bath chemistry rather than on a single variable alone.",
+        "korean_description": "etch profile은 단일 변수보다 여러 화학 조건의 복합 효과를 받으므로, 이 rule은 보조 설명용으로 해석하는 것이 안전하다."
+      }
+    ]
+  },
+  {
+    "paper_id": "ipc_cupric_chloride_hcl_micro_etch",
+    "citation": {
+      "title": "Cupric Chloride-Hydrochloric Acid Micro Etch",
+      "year": 2007,
+      "source": "IPC technical paper"
+    },
+    "korean_summary": "이 자료는 cupric chloride-hydrochloric acid micro etch 공정에서 copper concentration, specific gravity, bath temperature와 micro etching rate의 관계를 다룬다. 네 변수인 meas_etch_cu, meas_etch_sg, meas_etch_temp와 가장 실무적으로 잘 맞는다.",
+    "mapped_variables": [
+      {
+        "paper_term": "copper concentration",
+        "standard_column": "meas_etch_cu",
+        "mapping_type": "direct",
+        "korean_description": "구리 농도 → meas_etch_cu"
+      },
+      {
+        "paper_term": "specific gravity",
+        "standard_column": "meas_etch_sg",
+        "mapping_type": "direct",
+        "korean_description": "비중 → meas_etch_sg"
+      },
+      {
+        "paper_term": "bath temperature",
+        "standard_column": "meas_etch_temp",
+        "mapping_type": "direct",
+        "korean_description": "배스 온도 → meas_etch_temp"
+      },
+      {
+        "paper_term": "micro etching rate",
+        "standard_column": "etch_factor",
+        "mapping_type": "semi_direct",
+        "korean_description": "미세 식각속도 → etch_factor"
+      }
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "meas_etch_cu",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "high",
+        "korean_rule_explanation": "구리 농도 증가가 micro etching rate 증가와 연결되므로 etch_factor 증가 근거로 사용할 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_temp",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "high",
+        "korean_rule_explanation": "배스 온도 증가가 micro etching rate를 높이는 방향으로 작용하므로 etch_factor 증가 rule로 적합하다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_sg",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "increase"
+        },
+        "confidence": "medium",
+        "korean_rule_explanation": "비중 변화는 micro etch 반응성과 연결되므로 etch_factor 증가 방향의 보조 규칙으로 사용할 수 있다."
+      }
+    ],
+    "background_evidence": [
+      {
+        "content": "Micro etch rate reflects chemical activity and should be interpreted together with other bath parameters.",
+        "korean_description": "micro etch rate는 단일 화학값만이 아니라 배스 전체 상태를 반영하므로 다른 변수와 함께 해석해야 한다."
+      }
+    ]
+  }
+]
