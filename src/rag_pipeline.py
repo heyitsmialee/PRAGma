@@ -1,123 +1,225 @@
+import os
 import json
-import torch
-import docx2txt
+from typing import List
+
 from langchain_core.documents import Document
+from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+
+from transformers import BitsAndBytesConfig
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
+
+from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
 
-def setup_rag_pipeline(json_path='./rag_data_all.json', docx_path='./rag_opls.docx', db_dir='./chroma_huggingface'):
-    """
-    주어진 JSON 문서와 DOCX 문서를 모두 읽어 분할하고 임베딩하여 Chroma DB에 저장한 후,
-    HuggingFace LLM을 통해 RAG 파이프라인을 세팅합니다.
-    """
-    print("1. 문서 로드 및 분할 중...")
-    
+
+def load_json_as_documents(json_path: str, knowledge_type: str) -> List[Document]:
+    documents = []
+
+    if not os.path.exists(json_path):
+        print(f"JSON 파일 없음: {json_path}")
+        return documents
+
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    for item in data:
+        content = json.dumps(item, ensure_ascii=False, indent=2)
+
+        documents.append(
+            Document(
+                page_content=content,
+                metadata={
+                    "source": json_path,
+                    "type": knowledge_type,
+                    "id": item.get("paper_id", item.get("opls_id", ""))
+                }
+            )
+        )
+
+    return documents
+
+
+def load_markdown_as_documents(md_path: str) -> List[Document]:
+    if not os.path.exists(md_path):
+        print(f"Markdown 파일 없음: {md_path}")
+        return []
+
+    loader = TextLoader(file_path=md_path, encoding="utf-8")
+    docs = loader.load()
+
+    for doc in docs:
+        doc.metadata["source"] = md_path
+        doc.metadata["type"] = "shap_analysis"
+
+    return docs
+
+
+def setup_rag_pipeline(
+    paper_json_path="./rag_data_all.json",
+    opls_json_path="./opls_process_knowledge.json",
+    shap_md_path="./shap_analysis_for_rag.md",
+    db_dir="./chroma_huggingface",
+    rebuild_db=True
+):
+    print("1. 문서 로드 중...")
+
     document_list = []
-    
-    # 1. JSON 문서 로드
-    try:
-        with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        json_docs = [Document(page_content=item['content'], metadata={'source': json_path}) for item in data]
-        document_list.extend(json_docs)
-        print(f"-> JSON 파일에서 {len(json_docs)}개의 문서 로드 성공.")
-    except Exception as e:
-        print(f"JSON 로드 실패. 에러: {e}")
 
-    # 2. DOCX 문서 로드 (rag_opls.docx)
-    try:
-        text = docx2txt.process(docx_path)
-        docx_docs = [Document(page_content=text, metadata={'source': docx_path})]
-        document_list.extend(docx_docs)
-        print(f"-> DOCX 파일에서 {len(docx_docs)}개의 문서 로드 성공.")
-    except Exception as e:
-        print(f"DOCX 로드 실패. 파일이 있는지 확인해주세요. 에러: {e}")
-
-    if not document_list:
-        print("로드된 문서가 없습니다. 파이프라인 구성을 중단합니다.")
-        return None, None
-        
-    # 문서 분할 (Chunking)
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=700, chunk_overlap=100)
-    document_list = text_splitter.split_documents(document_list)
-    print(f"-> 총 {len(document_list)}개의 청크(Chunk)로 분할되었습니다.")
-
-    print("2. 임베딩 모델 로드 중...")
-    embeddings = HuggingFaceEmbeddings(model_name='intfloat/multilingual-e5-large-instruct')
-
-    print("3. Chroma 데이터베이스 설정 중...")
-    collection_name = 'chroma_rag_data'
-    database = Chroma.from_documents(
-        documents=document_list,
-        embedding=embeddings,
-        collection_name=collection_name,
-        persist_directory=db_dir
+    document_list.extend(
+        load_json_as_documents(
+            paper_json_path,
+            knowledge_type="paper_rule"
+        )
     )
 
-    if torch.cuda.is_available():
-        print("4. LLM 로컬 로드(4bit 양자화, CUDA) 중...")
-        from transformers import BitsAndBytesConfig
-        model_kwargs = {
-            'quantization_config': BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype="float16",
-                bnb_4bit_use_double_quant=True,
-            )
-        }
+    document_list.extend(
+        load_json_as_documents(
+            opls_json_path,
+            knowledge_type="opls_process_rule"
+        )
+    )
+
+    document_list.extend(
+        load_markdown_as_documents(shap_md_path)
+    )
+
+    if not document_list:
+        print("로드된 문서가 없습니다.")
+        return None, None
+
+    print(f"로드된 문서 수: {len(document_list)}")
+
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=700,
+        chunk_overlap=100
+    )
+
+    split_docs = text_splitter.split_documents(document_list)
+
+    print(f"분할된 Chunk 수: {len(split_docs)}")
+
+    print("2. 임베딩 모델 로드 중...")
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name="intfloat/multilingual-e5-large-instruct"
+    )
+
+    print("3. Chroma DB 설정 중...")
+
+    if rebuild_db:
+        database = Chroma.from_documents(
+            documents=split_docs,
+            embedding=embeddings,
+            collection_name="chroma_rag_data",
+            persist_directory=db_dir
+        )
     else:
-        device = "mps" if torch.backends.mps.is_available() else "cpu"
-        print(f"4. LLM 로컬 로드({device}) 중... (CUDA 없음, 4bit 양자화 비활성화)")
-        model_kwargs = {"device_map": device}
+        database = Chroma(
+            collection_name="chroma_rag_data",
+            embedding_function=embeddings,
+            persist_directory=db_dir
+        )
+
+    print("4. EXAONE 모델 로드 중...")
+
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype="float16",
+        bnb_4bit_use_double_quant=True,
+    )
 
     chat_model = HuggingFacePipeline.from_model_id(
         model_id="LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct",
-        task='text-generation',
-        pipeline_kwargs=dict(
-            max_new_tokens=1024,
-            do_sample=False,
-            repetition_penalty=1.03
-        ),
-        model_kwargs=model_kwargs
+        task="text-generation",
+        pipeline_kwargs={
+            "max_new_tokens": 1024,
+            "do_sample": False,
+            "repetition_penalty": 1.03
+        },
+        model_kwargs={
+            "quantization_config": quantization_config
+        }
     )
 
     llm = ChatHuggingFace(llm=chat_model)
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system",
-         "You are an assistant for question-answering tasks. "
-         "Use the following pieces of retrieved context to answer the question. "
-         "If you don't know the answer, just say that you don't know.\n\n"
-         "Context: {context}"),
-        ("human", "{input}"),
-    ])
-
-    retriever = database.as_retriever(search_kwargs={"k": 1})
-
-    def format_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
-
-    retrieval_chain = (
-        RunnablePassthrough.assign(context=lambda x: format_docs(retriever.invoke(x["input"])))
-        | RunnablePassthrough.assign(answer=prompt | llm | StrOutputParser())
+    retriever = database.as_retriever(
+        search_kwargs={"k": 3}
     )
 
-    return retrieval_chain, llm
+    template = """
+다음 문맥을 참고하여 질문에 답변해 주세요.
 
-def query_rag(retrieval_chain, query):
-    """
-    구성된 RAG 체인에 질문을 던지고 답변을 반환합니다.
-    """
-    if retrieval_chain is None:
-        print("RAG 체인이 구성되지 않았습니다.")
+문맥에는 논문 기반 공정 rule, 현업 OPLS 공정 조치 정보,
+SHAP 기반 모델 해석 정보가 포함될 수 있습니다.
+
+답변 시 아래 내용을 중심으로 정리해 주세요.
+- 질문에 대한 핵심 답변
+- 관련 공정 변수
+- 모델 또는 문헌 기반 근거
+- 필요 시 공정 조정 방향
+
+문맥:
+{context}
+
+질문:
+{question}
+
+답변:
+"""
+
+    prompt = PromptTemplate.from_template(template)
+
+    def format_docs(docs):
+        return "\n\n".join(
+            f"[source={doc.metadata.get('source', '')}, type={doc.metadata.get('type', '')}]\n{doc.page_content}"
+            for doc in docs
+        )
+
+    rag_chain = (
+        {
+            "context": retriever | format_docs,
+            "question": RunnablePassthrough()
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+
+    print("RAG Pipeline 구성 완료")
+    return rag_chain, llm
+
+
+def query_rag(rag_chain, query):
+    if rag_chain is None:
+        print("체인이 구성되지 않았습니다.")
         return None
 
     print(f"\n[질문]: {query}")
-    ai_message = retrieval_chain.invoke({"input": query})
-    print("[답변]:\n", ai_message['answer'])
-    return ai_message
+
+    answer = rag_chain.invoke(query)
+
+    print("[답변]:\n")
+    print(answer)
+
+    return answer
+
+
+if __name__ == "__main__":
+    rag_chain, llm = setup_rag_pipeline(
+        paper_json_path="./rag_data_all.json",
+        opls_json_path="./opls_process_knowledge.json",
+        shap_md_path="./shap_analysis_for_rag.md",
+        db_dir="./chroma_huggingface",
+        rebuild_db=True
+    )
+
+    query_rag(
+        rag_chain,
+        "Etching 온도와 비중이 높을 때 어떤 문제가 발생할 수 있고 어떻게 조치해야 하나요?"
+    )
