@@ -1,112 +1,446 @@
-import json
-from pathlib import Path
-
-
-def build_rag_chunks_for_opls_item(item):
-    opls_id = item.get("opls_id", "")
-    title = item.get("title", "")
-    mapped_columns = [
-        var.get("standard_column")
-        for var in item.get("mapped_variables", [])
-        if var.get("standard_column") is not None
-    ]
-
-    rag_chunks = []
-
-    # 1. 현상 chunk
-    if item.get("ng_symptoms"):
-        rag_chunks.append({
-            "chunk_id": f"{opls_id}_chunk_symptom",
-            "chunk_type": "symptom",
-            "standard_columns": mapped_columns,
-            "content": (
-                f"{title} 항목에서 주요 NG 현상은 "
-                + ", ".join(item["ng_symptoms"])
-                + "이다."
-            )
-        })
-
-    # 2. 원인 chunk
-    if item.get("possible_causes"):
-        rag_chunks.append({
-            "chunk_id": f"{opls_id}_chunk_cause",
-            "chunk_type": "cause",
-            "standard_columns": mapped_columns,
-            "content": (
-                f"{title}의 예상 원인은 "
-                + ", ".join(item["possible_causes"])
-                + "이다."
-            )
-        })
-
-    # 3. 조치 chunk
-    if item.get("inspection_actions"):
-        rag_chunks.append({
-            "chunk_id": f"{opls_id}_chunk_action",
-            "chunk_type": "action",
-            "standard_columns": mapped_columns,
-            "content": (
-                f"{title} 발생 시 점검 및 조치 사항은 "
-                + ", ".join(item["inspection_actions"])
-                + "이다."
-            )
-        })
-
-    # 4. rule chunk
-    for idx, rule in enumerate(item.get("rules", []), start=1):
-        condition = rule.get("condition", {})
-        effect = rule.get("effect", {})
-
-        cond_col = condition.get("standard_column", "")
-        cond_change = condition.get("change", "")
-        eff_col = effect.get("standard_column", effect.get("paper_term", ""))
-        eff_change = effect.get("change", "")
-
-        rag_chunks.append({
-            "chunk_id": f"{opls_id}_chunk_rule_{idx:02d}",
-            "chunk_type": "rule",
-            "standard_columns": [col for col in [cond_col, eff_col] if col],
-            "content": (
-                f"{title} 기준으로 {cond_col} 값이 {cond_change}하면 "
-                f"{eff_col}이 {eff_change}할 수 있다. "
-                f"{rule.get('korean_rule_explanation', '')} "
-                f"관련 리스크는 {rule.get('risk', '')}이다."
-            )
-        })
-
-    # 5. 핵심 포인트 chunk
-    if item.get("core_point"):
-        rag_chunks.append({
-            "chunk_id": f"{opls_id}_chunk_core_point",
-            "chunk_type": "core_point",
-            "standard_columns": mapped_columns,
-            "content": f"{title}의 핵심 포인트는 {item['core_point']}"
-        })
-
-    return rag_chunks
-
-
-def add_rag_chunks_to_opls_json(
-    input_path="opls_process_knowledge.json",
-    output_path="opls_process_knowledge.json"
-):
-    input_path = Path(input_path)
-    output_path = Path(output_path)
-
-    with input_path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    for item in data:
-        item["rag_chunks"] = build_rag_chunks_for_opls_item(item)
-
-    with output_path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    print(f"rag_chunks 추가 완료: {output_path}")
-
-
-if __name__ == "__main__":
-    add_rag_chunks_to_opls_json(
-        input_path="opls_process_knowledge.json",
-        output_path="opls_process_knowledge.json"
-    )
+[
+  {
+    "opls_id": "OPLS_001",
+    "title": "현상액 농도 및 pH 스펙 이탈에 따른 패턴 불량 조치",
+    "source": "rag_opls.docx",
+    "classification": [
+      "품질",
+      "설비"
+    ],
+    "purpose": "현상액 스펙 이탈 시 신속한 원인 파악 및 조치로 패턴 불량(미현상 및 과현상)을 방지한다.",
+    "mapped_variables": [
+      {
+        "paper_or_doc_term": "분석치_현상액 - 농도",
+        "standard_column": "meas_dev_conc",
+        "korean_name": "현상액 농도",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "분석치_현상액 - pH",
+        "standard_column": "meas_dev_ph",
+        "korean_name": "현상액 pH",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "선폭 OFFSET",
+        "standard_column": "width_offset",
+        "korean_name": "선폭 오차",
+        "mapping_type": "effect"
+      }
+    ],
+    "ng_symptoms": [
+      "AOI 검사 시 회로 잔사 발생",
+      "미현상 또는 과현상 발생",
+      "패턴 무너짐 발생",
+      "선폭 OFFSET 수치 변동",
+      "LCL_현상액 농도 0.96 미만",
+      "pH 10.5 미만"
+    ],
+    "possible_causes": [
+      "자동 보충 장치(Auto Dosing) 펌프 및 라인 막힘",
+      "탄산칼륨(K2CO3) 보충 탱크 수위 저하로 인한 공기 유입",
+      "현상조 내부 히터 고장으로 인한 용액 온도 저하"
+    ],
+    "inspection_actions": [
+      "분석치_현상액 농도 및 pH 트렌드 하락세 확인",
+      "탄산칼륨 보충 라인 에어 유입 또는 결정 막힘 여부 육안 점검",
+      "보충 탱크 수위 센서 정상 작동 여부 확인",
+      "현상조 온도 지시치와 실제 용액 온도 약 48도 전후 일치 여부 확인",
+      "배관 막힘 시 온수 플러싱 진행",
+      "에어록 발생 시 펌프 에어 빼기 작업 실시"
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "meas_dev_conc",
+          "change": "decrease"
+        },
+        "effect": {
+          "standard_column": "width_offset",
+          "change": "change"
+        },
+        "risk": "미현상 또는 과현상으로 인한 패턴 불량 가능성 증가",
+        "confidence": "high",
+        "korean_rule_explanation": "현상액 농도가 하한선 미만으로 낮아질 경우 회로 잔사 또는 패턴 무너짐이 발생할 수 있으며, 선폭 OFFSET 변동으로 이어질 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_dev_ph",
+          "change": "decrease"
+        },
+        "effect": {
+          "standard_column": "width_offset",
+          "change": "change"
+        },
+        "risk": "현상 불량 및 선폭 변동 가능성 증가",
+        "confidence": "high",
+        "korean_rule_explanation": "현상액 pH가 낮아지면 현상액 상태가 불안정해져 미현상 또는 과현상 위험이 증가할 수 있다."
+      }
+    ],
+    "core_point": "농도 저하 알람 발생 시 단순 약품 수동 투입보다 보충 라인의 물리적 막힘 여부를 먼저 확인하는 것이 재발 방지의 핵심이다."
+  },
+  {
+    "opls_id": "OPLS_002",
+    "title": "염화동 식각액 비중 및 온도 이탈 조치",
+    "source": "rag_opls.docx",
+    "classification": [
+      "품질",
+      "설비"
+    ],
+    "purpose": "식각 속도 변동을 차단하여 선폭 감소 및 과에칭 불량을 예방한다.",
+    "mapped_variables": [
+      {
+        "paper_or_doc_term": "분석치_Etching(염화동) - 비중",
+        "standard_column": "meas_etch_sg",
+        "korean_name": "Etching 비중",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "분석치_Etching(염화동) - 온도",
+        "standard_column": "meas_etch_temp",
+        "korean_name": "Etching 온도",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "선폭 OFFSET",
+        "standard_column": "width_offset",
+        "korean_name": "선폭 오차",
+        "mapping_type": "effect"
+      }
+    ],
+    "ng_symptoms": [
+      "선폭 OFFSET 수치가 마이너스 방향으로 급증",
+      "회로가 얇아짐",
+      "USL_Etching 비중 1.42 초과",
+      "Etching 온도 53도 초과"
+    ],
+    "possible_causes": [
+      "비중계 센서 표면 슬러지 고착으로 인한 측정 오류",
+      "냉각수 공급 라인 밸브 고장 또는 칠러 이상",
+      "염산 및 과산화수소 자동 투입 펌프 제어 오류로 인한 과투입"
+    ],
+    "inspection_actions": [
+      "분석치_Etching(염화동) 비중 및 온도 데이터가 상한선을 지속적으로 타격하는지 확인",
+      "비중계 센서 하우징 개방 후 슬러지 침적 여부 육안 확인",
+      "냉각 라인 칠러 압력 확인",
+      "열교환기 밸브 개폐 상태 점검",
+      "비중계 센서 탈거 후 DI Water 세척 및 영점 캘리브레이션 재수행",
+      "비중이 실제 기준치 이상일 경우 Auto Drain 밸브를 수동 개방하여 신액 보충 유도"
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "meas_etch_sg",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "width_offset",
+          "change": "decrease"
+        },
+        "risk": "과에칭으로 인한 선폭 감소 가능성 증가",
+        "confidence": "high",
+        "korean_rule_explanation": "Etching 비중이 상한선을 초과하면 식각 반응 조건이 과도해져 선폭 OFFSET이 마이너스 방향으로 변동하고 회로가 얇아질 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_temp",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "width_offset",
+          "change": "decrease"
+        },
+        "risk": "식각 속도 증가 및 과에칭 가능성 증가",
+        "confidence": "high",
+        "korean_rule_explanation": "Etching 온도가 53도 이상으로 상승하면 식각 속도가 증가하여 선폭 감소 및 과에칭 불량으로 이어질 수 있다."
+      }
+    ],
+    "core_point": "비중계 센서는 구리 슬러지에 취약하므로 주 1회 정기 세척이 필요하며, 데이터가 갑자기 튀는 경우 가장 먼저 센서 세척을 실시해야 한다."
+  },
+  {
+    "opls_id": "OPLS_003",
+    "title": "에칭 팩터 저하 및 구리 농도 과다 조치",
+    "source": "rag_opls.docx",
+    "classification": [
+      "품질"
+    ],
+    "purpose": "안정적인 에칭 팩터 확보로 회로 단면 직진성을 유지하고 회로 단락을 방지한다.",
+    "mapped_variables": [
+      {
+        "paper_or_doc_term": "분석치_Etch factor",
+        "standard_column": "etch_factor",
+        "korean_name": "Etch Factor",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "분석치_Etching(염화동) - Cu",
+        "standard_column": "meas_etch_cu",
+        "korean_name": "Etching Cu 농도",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "분석치_Etching-첨가제(HB-120EF)",
+        "standard_column": "meas_etch_additive",
+        "korean_name": "Etching 첨가제 농도",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "스프레이 압력",
+        "standard_column": null,
+        "korean_name": "스프레이 압력",
+        "mapping_type": "unavailable"
+      }
+    ],
+    "ng_symptoms": [
+      "회로 단면이 사다리꼴로 형성",
+      "미에칭 발생",
+      "분석치_Etch factor 4.0 미만 저하",
+      "USL_Etching(염화동) Cu 185 초과"
+    ],
+    "possible_causes": [
+      "에칭 첨가제(HB-120EF) 투입 부족으로 인한 측면 보호 효과 상실",
+      "구리 이온 포화 용액의 배출 불량",
+      "배액 라인 및 밸브 막힘",
+      "식각조 상하부 스프레이 압력 불균형",
+      "노즐 막힘"
+    ],
+    "inspection_actions": [
+      "분석치_Etching-첨가제 농도가 2.6 미만인지 확인",
+      "첨가제 투입 펌프의 에어록 현상 확인",
+      "식각조 상부와 하부의 스프레이 압력 게이지 수치 비교",
+      "특정 구간의 압력 저하 여부 점검",
+      "첨가제 펌프 에어 제거 후 비커를 이용해 실제 토출량 테스트 진행",
+      "매니폴드 탈거 후 막힌 노즐 세척",
+      "구리 농도 과다 시 배액 라인 점검 후 강제 배액 실시"
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "etch_factor",
+          "change": "decrease"
+        },
+        "effect": {
+          "standard_column": "width_offset",
+          "change": "change"
+        },
+        "risk": "회로 단면 직진성 저하 및 회로 단락 가능성 증가",
+        "confidence": "high",
+        "korean_rule_explanation": "Etch factor가 4.0 미만으로 낮아지면 회로 단면이 사다리꼴로 형성되거나 미에칭이 발생할 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_cu",
+          "change": "increase"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "decrease"
+        },
+        "risk": "구리 이온 포화로 인한 식각 성능 저하 가능성",
+        "confidence": "high",
+        "korean_rule_explanation": "Etching Cu 농도가 과다하면 구리 이온 포화 및 배출 불량 가능성이 있으며, 에칭 팩터 저하와 연결될 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_etch_additive",
+          "change": "decrease"
+        },
+        "effect": {
+          "standard_column": "etch_factor",
+          "change": "decrease"
+        },
+        "risk": "측면 보호 효과 상실로 인한 etch factor 저하",
+        "confidence": "high",
+        "korean_rule_explanation": "에칭 첨가제 농도가 낮으면 측면 보호 효과가 약해져 에칭 팩터가 저하될 수 있다."
+      }
+    ],
+    "core_point": "첨가제 농도는 에칭 팩터와 직결되며, 분석치 알람 발생 시 펌프 제어반 수치보다 실제 토출량 검증이 우선이다."
+  },
+  {
+    "opls_id": "OPLS_004",
+    "title": "Soft Etch 구리 표면 두께 규격 이탈 조치",
+    "source": "rag_opls.docx",
+    "classification": [
+      "품질"
+    ],
+    "purpose": "균일한 구리 표면 두께를 유지하여 후속 도금 공정 불량 및 밀착성 저하를 방지한다.",
+    "mapped_variables": [
+      {
+        "paper_or_doc_term": "Cu 표면두께 Max_Val",
+        "standard_column": "cu_thick_max",
+        "korean_name": "Cu 표면두께 최대값",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "Cu 표면두께 AVG_VAL",
+        "standard_column": "cu_thick_avg",
+        "korean_name": "Cu 표면두께 평균값",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "Cu 표면두께 Min_Val",
+        "standard_column": "cu_thick_min",
+        "korean_name": "Cu 표면두께 최소값",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "Cu 표면두께 Std_Val",
+        "standard_column": "cu_thick_std",
+        "korean_name": "Cu 표면두께 표준편차",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "분석치_Soft Etch - H2SO4",
+        "standard_column": "meas_softetch_h2so4",
+        "korean_name": "Soft Etch H2SO4 농도",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "분석치_Soft Etch - SPS",
+        "standard_column": "meas_softetch_sps",
+        "korean_name": "Soft Etch SPS 농도",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "양산 DES 속도",
+        "standard_column": "mass_des_speed",
+        "korean_name": "양산 DES 속도",
+        "mapping_type": "related_operation"
+      }
+    ],
+    "ng_symptoms": [
+      "Cu 표면두께 측정값이 LSL 10 미만",
+      "Cu 표면두께 측정값이 USL 24 초과",
+      "Cu 표면두께 산포 흔들림",
+      "Soft Etch H2SO4 또는 SPS 농도 스펙 이탈"
+    ],
+    "possible_causes": [
+      "과황산나트륨(SPS) 이송 라인 내부 결정화로 인한 약품 투입 불량",
+      "황산 투입 밸브 제어 오류",
+      "기판 이송 구동부 롤러 마모로 인한 기판 체류 시간 또는 식각 시간 변동"
+    ],
+    "inspection_actions": [
+      "분석치_Soft Etch SPS 및 H2SO4 농도 트렌드와 Cu 두께 트렌드 상관관계 확인",
+      "SPS 투입 라인, Y스트레이너, 인젝터 부근 결정화 여부 확인",
+      "기판 이송 롤러 평탄도 확인",
+      "초물 DES 속도와 양산 DES 속도의 실제 편차 확인",
+      "SPS 라인 온수 플러싱으로 결정 제거",
+      "마모된 구동 롤러 교체",
+      "타코미터로 실제 컨베이어 이송 속도 재측정"
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "meas_softetch_sps",
+          "change": "change"
+        },
+        "effect": {
+          "standard_column": "cu_thick_avg",
+          "change": "change"
+        },
+        "risk": "Cu 표면두께 규격 이탈 및 산포 증가",
+        "confidence": "high",
+        "korean_rule_explanation": "Soft Etch SPS 농도 스펙이 이탈하면 구리 표면 두께가 LSL/USL을 벗어나거나 산포가 흔들릴 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_softetch_h2so4",
+          "change": "change"
+        },
+        "effect": {
+          "standard_column": "cu_thick_avg",
+          "change": "change"
+        },
+        "risk": "Cu 표면두께 규격 이탈 가능성",
+        "confidence": "medium",
+        "korean_rule_explanation": "Soft Etch H2SO4 농도 변화는 구리 표면 두께 트렌드와 함께 확인해야 한다."
+      },
+      {
+        "condition": {
+          "standard_column": "mass_des_speed",
+          "change": "change"
+        },
+        "effect": {
+          "standard_column": "cu_thick_avg",
+          "change": "change"
+        },
+        "risk": "기판 체류 시간 변동으로 인한 식각 시간 변화",
+        "confidence": "medium",
+        "korean_rule_explanation": "컨베이어 이송 속도 편차 또는 롤러 마모는 기판 체류 시간을 변화시켜 구리 표면 두께 산포에 영향을 줄 수 있다."
+      }
+    ],
+    "core_point": "SPS 약품은 온도 저하 시 결정이 쉽게 생성되므로 투입 라인의 보온 유지와 주기적인 온수 플러싱 관리가 필수이다."
+  },
+  {
+    "opls_id": "OPLS_005",
+    "title": "박리액(Stripper) 농도 저하 및 잔사 조치",
+    "source": "rag_opls.docx",
+    "classification": [
+      "품질",
+      "설비"
+    ],
+    "purpose": "완벽한 드라이필름 박리를 통해 기판 오염을 방지하고 후공정 수율을 확보한다.",
+    "mapped_variables": [
+      {
+        "paper_or_doc_term": "분석치_박리액 - 농도",
+        "standard_column": "meas_strip_conc",
+        "korean_name": "박리액 농도",
+        "mapping_type": "direct"
+      },
+      {
+        "paper_or_doc_term": "분석치_수세수 - pH",
+        "standard_column": "meas_rinse_ph",
+        "korean_name": "수세수 pH",
+        "mapping_type": "related"
+      }
+    ],
+    "ng_symptoms": [
+      "박리 공정 통과 후 기판 표면 또는 홀 내부에 필름 잔사 발생",
+      "LCL_박리액 농도 2.3 미만"
+    ],
+    "possible_causes": [
+      "박리조 순환 펌프 필터 막힘으로 인한 물리적 타발력 또는 유량 저하",
+      "수산화나트륨(NaOH) 보충 지연",
+      "스퀴지 롤러 손상으로 인한 액 끌림(Drag-out) 현상"
+    ],
+    "inspection_actions": [
+      "박리액 농도 하락세 확인",
+      "수세조 pH 수치 동반 상승 여부 점검",
+      "순환 펌프 필터 전단과 후단 압력계 수치 비교",
+      "차압 발생 여부 확인",
+      "수세단 진입 전 스퀴지 롤러 마모, 찢어짐, 밀착 불량 상태 점검",
+      "필터 차압 발생 시 새 필터로 교체",
+      "스퀴지 롤러 간격 재조정 및 파손 시 교체",
+      "수동으로 가성소다를 투입하여 초기 농도 회복"
+    ],
+    "rules": [
+      {
+        "condition": {
+          "standard_column": "meas_strip_conc",
+          "change": "decrease"
+        },
+        "effect": {
+          "paper_term": "film_residue",
+          "change": "increase"
+        },
+        "risk": "기판 표면 또는 홀 내부 필름 잔사 발생 가능성 증가",
+        "confidence": "high",
+        "korean_rule_explanation": "박리액 농도가 2.3 미만으로 낮아지면 드라이필름 박리 성능이 저하되어 기판 표면 또는 홀 내부 잔사가 발생할 수 있다."
+      },
+      {
+        "condition": {
+          "standard_column": "meas_rinse_ph",
+          "change": "increase"
+        },
+        "effect": {
+          "paper_term": "drag_out",
+          "change": "increase"
+        },
+        "risk": "박리액 끌림 및 후단 수세조 영향 가능성",
+        "confidence": "medium",
+        "korean_rule_explanation": "박리액 농도 하락과 함께 수세수 pH가 상승하면 액 끌림 현상 가능성을 의심할 수 있다."
+      }
+    ],
+    "core_point": "순환 필터가 막히면 화학 농도가 정상이더라도 물리적으로 필름을 제거하는 힘이 부족해지므로 농도 관리와 함께 차압 관리가 중요하다."
+  }
+]
