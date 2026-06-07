@@ -384,11 +384,76 @@ def search_knowledge(question, top_k=4):
 def chatbot_answer(question):
     docs = search_knowledge(question)
 
+    q = question.lower()
+
+    action_map = {
+        "cu": [
+            "Auto Drain 동작 여부를 확인합니다.",
+            "신액 보충 상태와 배액 라인 막힘 여부를 점검합니다.",
+            "Cu 농도 상승이 Etch factor 저하로 이어지는지 함께 확인합니다.",
+        ],
+        "구리": [
+            "Auto Drain 동작 여부를 확인합니다.",
+            "신액 보충 상태와 배액 라인 막힘 여부를 점검합니다.",
+            "Cu 농도 상승이 Etch factor 저하로 이어지는지 함께 확인합니다.",
+        ],
+        "온도": [
+            "칠러 및 히터 제어 상태를 확인합니다.",
+            "에칭액 온도 센서값과 실제 측정값을 교차 확인합니다.",
+            "온도 상승 시 과에칭 가능성이 있으므로 컨베이어 속도 보정 여부를 검토합니다.",
+        ],
+        "비중": [
+            "비중계 센서 오염 또는 슬러지 부착 여부를 확인합니다.",
+            "약액 농도 보정 및 보충 이력을 확인합니다.",
+            "비중 상승 시 에칭 반응 속도 변화 가능성을 함께 점검합니다.",
+        ],
+        "첨가제": [
+            "첨가제 토출량과 펌프 동작 상태를 확인합니다.",
+            "펌프 에어록 또는 노즐 막힘 여부를 점검합니다.",
+            "첨가제 농도 저하 시 미에칭 또는 선폭 불균일 가능성을 확인합니다.",
+        ],
+        "etch factor": [
+            "Cu 농도, 첨가제 농도, 스프레이 상태를 함께 확인합니다.",
+            "상하부 노즐 분사 균일성을 점검합니다.",
+            "Etch factor 저하 시 선폭 품질 변동 가능성을 확인합니다.",
+        ],
+        "선폭": [
+            "Cu 표면두께 산포와 Etch factor를 우선 확인합니다.",
+            "노광/현상 조건과 DES 속도 편차를 함께 점검합니다.",
+            "선폭 OFFSET 방향에 따라 과에칭 또는 미에칭 가능성을 구분합니다.",
+        ],
+        "ph": [
+            "현상액 pH 센서값과 실측값을 비교합니다.",
+            "K2CO3 보충 라인과 탱크 수위를 확인합니다.",
+            "pH 하락이 현상 불량 또는 잔사 발생으로 이어지는지 확인합니다.",
+        ],
+        "박리": [
+            "박리액 농도와 순환 펌프 상태를 확인합니다.",
+            "필터 차압 및 스퀴지 롤러 상태를 점검합니다.",
+            "박리 잔사 발생 시 수세수 pH와 세정 조건을 함께 확인합니다.",
+        ],
+    }
+
+    selected_actions = None
+
+    for key, actions in action_map.items():
+        if key in q:
+            selected_actions = actions
+            break
+
+    if selected_actions is None:
+        selected_actions = [
+            "질문과 관련된 공정 변수의 OPLS 이탈 여부를 먼저 확인합니다.",
+            "센서값과 실측값을 교차 확인합니다.",
+            "약품 농도, 설비 상태, 노즐/펌프/배액 라인을 순차적으로 점검합니다.",
+        ]
+
     lines = []
     lines.append("### 조치 방향")
-    lines.append("- 센서값과 실측값을 먼저 교차 확인합니다.")
-    lines.append("- 질문과 관련된 공정 변수의 OPLS 이탈 또는 근접 여부를 우선 점검합니다.")
-    lines.append("- 약품 보충, 배액 라인, 칠러, 노즐, 펌프 에어록 여부를 순차적으로 확인합니다.")
+
+    for action in selected_actions:
+        lines.append(f"- {action}")
+
     lines.append("")
     lines.append("### 관련 근거")
 
@@ -397,12 +462,13 @@ def chatbot_answer(question):
     else:
         for idx, (_, doc_type, text) in enumerate(docs[:3], start=1):
             text = text.replace("\n", " ")
+
             if len(text) > 350:
                 text = text[:350] + "..."
+
             lines.append(f"{idx}. **{doc_type}**: {text}")
 
     return "\n".join(lines)
-
 
 def rag_answer(question, alerts=None, pred=None):
     return chatbot_answer(question)
