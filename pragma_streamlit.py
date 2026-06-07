@@ -383,90 +383,115 @@ def search_knowledge(question, top_k=4):
 
 def chatbot_answer(question):
     docs = search_knowledge(question)
-
     q = question.lower()
 
-    action_map = {
-        "cu": [
-            "Auto Drain 동작 여부를 확인합니다.",
-            "신액 보충 상태와 배액 라인 막힘 여부를 점검합니다.",
-            "Cu 농도 상승이 Etch factor 저하로 이어지는지 함께 확인합니다.",
-        ],
-        "구리": [
-            "Auto Drain 동작 여부를 확인합니다.",
-            "신액 보충 상태와 배액 라인 막힘 여부를 점검합니다.",
-            "Cu 농도 상승이 Etch factor 저하로 이어지는지 함께 확인합니다.",
-        ],
-        "온도": [
-            "칠러 및 히터 제어 상태를 확인합니다.",
-            "에칭액 온도 센서값과 실제 측정값을 교차 확인합니다.",
-            "온도 상승 시 과에칭 가능성이 있으므로 컨베이어 속도 보정 여부를 검토합니다.",
-        ],
-        "비중": [
-            "비중계 센서 오염 또는 슬러지 부착 여부를 확인합니다.",
-            "약액 농도 보정 및 보충 이력을 확인합니다.",
-            "비중 상승 시 에칭 반응 속도 변화 가능성을 함께 점검합니다.",
-        ],
-        "첨가제": [
-            "첨가제 토출량과 펌프 동작 상태를 확인합니다.",
-            "펌프 에어록 또는 노즐 막힘 여부를 점검합니다.",
-            "첨가제 농도 저하 시 미에칭 또는 선폭 불균일 가능성을 확인합니다.",
-        ],
-        "etch factor": [
-            "Cu 농도, 첨가제 농도, 스프레이 상태를 함께 확인합니다.",
-            "상하부 노즐 분사 균일성을 점검합니다.",
-            "Etch factor 저하 시 선폭 품질 변동 가능성을 확인합니다.",
-        ],
-        "선폭": [
-            "Cu 표면두께 산포와 Etch factor를 우선 확인합니다.",
-            "노광/현상 조건과 DES 속도 편차를 함께 점검합니다.",
-            "선폭 OFFSET 방향에 따라 과에칭 또는 미에칭 가능성을 구분합니다.",
-        ],
-        "ph": [
-            "현상액 pH 센서값과 실측값을 비교합니다.",
-            "K2CO3 보충 라인과 탱크 수위를 확인합니다.",
-            "pH 하락이 현상 불량 또는 잔사 발생으로 이어지는지 확인합니다.",
-        ],
-        "박리": [
-            "박리액 농도와 순환 펌프 상태를 확인합니다.",
-            "필터 차압 및 스퀴지 롤러 상태를 점검합니다.",
-            "박리 잔사 발생 시 수세수 pH와 세정 조건을 함께 확인합니다.",
-        ],
+    rulebook = {
+        "cu": {
+            "judgment": "Cu 농도 상승으로 인해 에칭 반응 균형이 무너지고, Etch factor 저하 또는 과에칭 가능성이 있습니다.",
+            "causes": ["Auto Drain 동작 불량", "신액 보충 지연", "배액 라인 막힘", "약액 순환 불균일"],
+            "checks": ["Cu 농도 실측값", "Etch factor 변화", "비중 트렌드", "배액/보충 이력"],
+            "actions": ["Auto Drain 상태를 확인합니다.", "신액 보충 및 배액 라인을 점검합니다.", "Cu 농도 재측정 후 Etch factor와 함께 판단합니다."],
+            "followup": "최근 선폭 OFFSET이나 Etch factor도 같이 변동했나요?"
+        },
+        "구리": {
+            "judgment": "구리 농도 상승으로 인해 에칭액 반응성이 저하되고, 미에칭 또는 선폭 품질 변동이 발생할 수 있습니다.",
+            "causes": ["Cu 축적", "배액 불량", "신액 보충 부족"],
+            "checks": ["Cu 농도", "Etch factor", "비중", "선폭 OFFSET"],
+            "actions": ["배액 라인을 점검합니다.", "신액 보충 상태를 확인합니다.", "Cu 농도와 선폭 변화를 함께 확인합니다."],
+            "followup": "Cu 농도 상승과 함께 비중도 상승했나요?"
+        },
+        "온도": {
+            "judgment": "에칭 온도 변화는 반응 속도에 직접 영향을 주며, 온도 상승 시 과에칭 가능성이 커질 수 있습니다.",
+            "causes": ["칠러 제어 불안정", "히터 제어 이상", "온도 센서 오차", "약액 순환 불균일"],
+            "checks": ["온도 센서값", "실측 온도", "칠러 상태", "컨베이어 속도"],
+            "actions": ["센서값과 실측값을 교차 확인합니다.", "칠러 및 히터 제어 상태를 점검합니다.", "온도 상승 시 DES 속도 보정 여부를 검토합니다."],
+            "followup": "온도 상승과 함께 과에칭 또는 선폭 감소도 관찰되나요?"
+        },
+        "비중": {
+            "judgment": "비중 변화는 약액 농도 변화와 연결될 수 있으며, 에칭 균일성과 반응 속도에 영향을 줄 수 있습니다.",
+            "causes": ["약액 농도 변화", "슬러지 부착", "비중계 센서 오염", "보충/배액 불균형"],
+            "checks": ["비중계 센서 상태", "약액 보충 이력", "Cu 농도", "HCl 농도"],
+            "actions": ["비중계 센서를 세척합니다.", "약액 보충 및 배액 이력을 확인합니다.", "Cu/HCl 농도와 함께 판단합니다."],
+            "followup": "비중 변화와 Cu 농도 변화가 같은 방향으로 발생했나요?"
+        },
+        "첨가제": {
+            "judgment": "첨가제 농도 저하는 Etch factor 저하, 미에칭, 선폭 불균일과 연결될 수 있습니다.",
+            "causes": ["첨가제 토출량 부족", "펌프 에어록", "노즐 막힘", "약품 보충 지연"],
+            "checks": ["첨가제 농도", "펌프 동작 상태", "노즐 분사 상태", "Etch factor"],
+            "actions": ["첨가제 토출량을 확인합니다.", "펌프 에어록 여부를 점검합니다.", "노즐 막힘 및 분사 균일성을 확인합니다."],
+            "followup": "첨가제 저하와 함께 Etch factor도 낮아졌나요?"
+        },
+        "etch factor": {
+            "judgment": "Etch factor 저하는 선폭 품질 저하와 직접 연결될 수 있어 우선 점검이 필요합니다.",
+            "causes": ["Cu 농도 과다", "첨가제 부족", "스프레이 분사 불균일", "노즐 막힘"],
+            "checks": ["Cu 농도", "첨가제 농도", "상하부 스프레이 상태", "선폭 OFFSET"],
+            "actions": ["Cu 농도와 첨가제 농도를 함께 확인합니다.", "스프레이 압력 및 노즐 상태를 점검합니다.", "선폭 OFFSET 변화를 확인합니다."],
+            "followup": "Etch factor 저하가 특정 설비나 특정 LOT에서 반복되나요?"
+        },
+        "선폭": {
+            "judgment": "선폭 변동은 과에칭/미에칭, Cu 두께 산포, Etch factor 변화와 함께 판단해야 합니다.",
+            "causes": ["과에칭", "미에칭", "Cu 표면두께 산포", "DES 속도 편차"],
+            "checks": ["선폭 OFFSET", "Cu 표면두께", "Etch factor", "DES 속도"],
+            "actions": ["선폭 OFFSET 방향을 확인합니다.", "Cu 표면두께 산포를 점검합니다.", "Etch factor와 DES 속도를 함께 확인합니다."],
+            "followup": "선폭 OFFSET이 플러스 방향인가요, 마이너스 방향인가요?"
+        },
+        "ph": {
+            "judgment": "현상액 pH 이탈은 현상 품질과 잔사 발생에 영향을 줄 수 있습니다.",
+            "causes": ["K2CO3 보충 부족", "보충 라인 이상", "센서 오차", "탱크 농도 불균일"],
+            "checks": ["pH 센서값", "실측 pH", "K2CO3 보충 라인", "탱크 수위"],
+            "actions": ["pH 센서값과 실측값을 비교합니다.", "K2CO3 보충 라인과 탱크 수위를 확인합니다.", "현상액 농도와 함께 판단합니다."],
+            "followup": "pH 하락과 함께 현상 잔사나 박리 잔사가 증가했나요?"
+        },
     }
 
-    selected_actions = None
-
-    for key, actions in action_map.items():
+    selected = None
+    for key, value in rulebook.items():
         if key in q:
-            selected_actions = actions
+            selected = value
             break
 
-    if selected_actions is None:
-        selected_actions = [
-            "질문과 관련된 공정 변수의 OPLS 이탈 여부를 먼저 확인합니다.",
-            "센서값과 실측값을 교차 확인합니다.",
-            "약품 농도, 설비 상태, 노즐/펌프/배액 라인을 순차적으로 점검합니다.",
-        ]
+    if selected is None:
+        selected = {
+            "judgment": "질문 내용 기준으로는 특정 공정 변수를 먼저 식별한 뒤 OPLS 이탈 여부를 확인하는 것이 좋습니다.",
+            "causes": ["센서값 이상", "약품 농도 변화", "설비 상태 변화", "공정 조건 편차"],
+            "checks": ["OPLS 기준 이탈 여부", "센서값과 실측값 차이", "최근 LOT 트렌드", "설비 이력"],
+            "actions": ["관련 공정 변수의 현재값을 확인합니다.", "센서값과 실측값을 교차 확인합니다.", "약품/설비/품질 데이터를 함께 비교합니다."],
+            "followup": "어떤 공정 변수에서 이상이 발생했는지 알려주실 수 있나요?"
+        }
 
     lines = []
-    lines.append("### 조치 방향")
+    lines.append("### AI 공정 엔지니어 답변")
+    lines.append(selected["judgment"])
+    lines.append("")
 
-    for action in selected_actions:
-        lines.append(f"- {action}")
+    lines.append("### 가능 원인")
+    for item in selected["causes"]:
+        lines.append(f"- {item}")
+
+    lines.append("")
+    lines.append("### 우선 확인 항목")
+    for item in selected["checks"]:
+        lines.append(f"- {item}")
+
+    lines.append("")
+    lines.append("### 추천 조치")
+    for item in selected["actions"]:
+        lines.append(f"- {item}")
 
     lines.append("")
     lines.append("### 관련 근거")
-
     if not docs:
         lines.append("- 관련 문서를 찾지 못했습니다.")
     else:
         for idx, (_, doc_type, text) in enumerate(docs[:3], start=1):
             text = text.replace("\n", " ")
-
             if len(text) > 350:
                 text = text[:350] + "..."
-
             lines.append(f"{idx}. **{doc_type}**: {text}")
+
+    lines.append("")
+    lines.append("### 추가 확인 질문")
+    lines.append(f"- {selected['followup']}")
 
     return "\n".join(lines)
 
@@ -751,6 +776,9 @@ with tab2:
 with tab3:
     st.subheader("공정 지식 챗봇")
 
+    if "chatbot_messages" not in st.session_state:
+        st.session_state.chatbot_messages = []
+
     examples = [
         "Cu 농도가 UCL 초과하면 어떤 조치를 해야 하나요?",
         "Etch factor가 낮을 때 원인은 무엇인가요?",
@@ -758,19 +786,40 @@ with tab3:
         "현상액 pH가 낮으면 어떤 문제가 생기나요?",
     ]
 
-    if "chatbot_question" not in st.session_state:
-        st.session_state.chatbot_question = "Etching 온도가 높으면 어떤 문제가 생기나요?"
-
     cols = st.columns(4)
 
     for idx, example in enumerate(examples):
         if cols[idx].button(example):
-            st.session_state.chatbot_question = example
+            st.session_state.chatbot_messages.append({
+                "role": "user",
+                "content": example
+            })
+            st.session_state.chatbot_messages.append({
+                "role": "assistant",
+                "content": chatbot_answer(example)
+            })
 
-    q = st.text_input(
-        "질문을 입력하세요",
-        key="chatbot_question"
-    )
+    for msg in st.session_state.chatbot_messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    if st.button("답변 생성"):
-        st.markdown(chatbot_answer(q))
+    user_question = st.chat_input("공정 관련 질문을 입력하세요.")
+
+    if user_question:
+        st.session_state.chatbot_messages.append({
+            "role": "user",
+            "content": user_question
+        })
+
+        answer = chatbot_answer(user_question)
+
+        st.session_state.chatbot_messages.append({
+            "role": "assistant",
+            "content": answer
+        })
+
+        st.rerun()
+
+    if st.button("대화 초기화"):
+        st.session_state.chatbot_messages = []
+        st.rerun()
