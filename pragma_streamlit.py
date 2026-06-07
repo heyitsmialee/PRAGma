@@ -751,11 +751,6 @@ with tab2:
 with tab3:
     st.subheader("공정 지식 챗봇")
 
-    q = st.text_input(
-        "질문을 입력하세요",
-        value="Etching 온도가 높으면 어떤 문제가 생기나요?"
-    )
-
     examples = [
         "Cu 농도가 UCL 초과하면 어떤 조치를 해야 하나요?",
         "Etch factor가 낮을 때 원인은 무엇인가요?",
@@ -763,15 +758,19 @@ with tab3:
         "현상액 pH가 낮으면 어떤 문제가 생기나요?",
     ]
 
+    if "chatbot_question" not in st.session_state:
+        st.session_state.chatbot_question = "Etching 온도가 높으면 어떤 문제가 생기나요?"
+
     cols = st.columns(4)
-    selected = None
 
-    for col, example in zip(cols, examples):
-        if col.button(example):
-            selected = example
+    for idx, example in enumerate(examples):
+        if cols[idx].button(example):
+            st.session_state.chatbot_question = example
 
-    if selected:
-        q = selected
+    q = st.text_input(
+        "질문을 입력하세요",
+        key="chatbot_question"
+    )
 
-    if st.button("답변 생성", type="primary"):
+    if st.button("답변 생성"):
         st.markdown(chatbot_answer(q))
